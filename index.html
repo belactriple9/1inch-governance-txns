@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>1inch Governance Viewer</title>
+</head>
+<body>
+    <h1>1inch Governance Viewer</h1>
+    
+    <label for="rpcInput">RPC:</label>
+    <input type="text" id="rpcInput" name="rpcInput" value="https://cloudflare-eth.com"><br><br>
+    
+    <label for="txHashInput">Transaction Hash:</label>
+    <input type="text" id="txHashInput" name="txHashInput"><br><br>
+    
+    <button type="button" onclick="submitForm()">Submit</button>
+
+    <hr>
+    <h2>Details</h2>
+    <p>Snapshot exists? <span id="snapshotExists"></span></p> 
+    <p>Proposal hash matches snapshots? <span id="proposalHashMatches"></span></p>
+    <p>Current reality.eth vote? <span id="realityEthVote"></span></p>
+    
+    <script>
+        async function fetchIPFSHash(proposalID) {
+            const response = await fetch("https://hub.snapshot.org/graphql", 
+            {
+                "headers": {
+                    "accept": "*/*",
+                    "accept-language": "en-US,en;q=0.9",
+                    "cache-control": "no-cache",
+                    "content-type": "application/json",
+                    "pragma": "no-cache",
+                },
+                "body": "{\"operationName\":\"Proposal\",\"variables\":{\"id\":\""+proposalID+"\"},\"query\":\"query Proposal($id: String!) {\\n  proposal(id: $id) {\\n    id\\n    ipfs\\n    title\\n    body\\n    discussion\\n    choices\\n    start\\n    end\\n    snapshot\\n    state\\n    author\\n    created\\n    plugins\\n    network\\n    type\\n    quorum\\n    quorumType\\n    symbol\\n    privacy\\n    validation {\\n      name\\n      params\\n    }\\n    strategies {\\n      name\\n      network\\n      params\\n    }\\n    space {\\n      id\\n      name\\n    }\\n    scores_state\\n    scores\\n    scores_by_strategy\\n    scores_total\\n    votes\\n    flagged\\n  }\\n}\"}",
+                "method": "POST",
+                "credentials": "omit"
+            });
+            const data = await response.json();
+            return data.data.proposal.ipfs;
+        }
+
+        async function fetchLogs(rpcURL, txHash) {
+            var raw = JSON.stringify({
+                "method": "eth_getTransactionReceipt",
+                "params": [
+                    txHash
+                ],
+                "id": 1,
+                "jsonrpc": "2.0"
+            });
+
+            const response = await fetch(rpcURL, 
+                {
+                    "headers": {"Content-Type": "application/json"},
+                    "body": raw,
+                    "method": "POST"
+                });
+
+            const data = await response.json();
+            const question_id = data.result.logs[0].topics[1]; // used later to check if it has a vote. 
+            const proposalIdAndProposalHash = data.result.logs[0].data.substring(514, 780).match(/.{1,2}/g).map(byte => String.fromCharCode(parseInt(byte, 16))).join('').split('â\x90\x9F').map(entry => entry.indexOf('0x') !== -1 ? entry : '0x' + entry);
+            return {
+                proposalID: proposalIdAndProposalHash[0],
+                transactionHash: proposalIdAndProposalHash[1], // NOTE DIFFERENT FROM THE txHash PARAMETER
+                questionId: question_id
+            };
+        }
+
+        async function fetchIPFSData(ipfsHash) {
+            const response = await fetch("https://snapshot.4everland.link/ipfs/"+ipfsHash).then(response => response.json());
+            // console.log(response.data)
+            return JSON.parse(response.data.message.plugins).safeSnap.safes[0];
+        }
+
+        async function checkRealityETHVote(rpcURL, question_id) {
+            question_id = question_id.indexOf('0x') === -1 ? '0x' + question_id : question_id;
+            // eth_call to 0x5b7dd1e86623548af054a4985f7fc8ccbb554e2c with the question_id
+
+            const response = await fetch(rpcURL, {
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body": "{\"jsonrpc\":\"2.0\",\"id\":6781789101407586,\"method\":\"eth_call\",\"params\":[{\"from\":\"0x0000000000000000000000000000000000000000\",\"data\":\"0x8d552d46"+question_id.substring(2).toLowerCase() +"\",\"to\":\"0x5b7dd1e86623548af054a4985f7fc8ccbb554e2c\"},\"latest\"]}",
+                "method": "POST",
+            });
+            let data = await response.json();
+            data = BigInt(data.result);
+
+            return data > 0n;
+            
+        }
+
+        async function submitForm() {
+            var rpc = document.getElementById("rpcInput").value;
+            var txHash = document.getElementById("txHashInput").value;
+            let proposalExists;
+            let proposalHashMatchesSnapshots;
+            let ipfsHash;
+            let ipfsData; 
+            let proposalInformation = await fetchLogs(rpc, txHash);
+            let proposalID = proposalInformation.proposalID;
+            await fetchIPFSHash(proposalID).then((ipfsData) => {
+                proposalExists = ipfsData ? true : false;
+                ipfsHash = ipfsData;
+            });
+            // Perform actions with the RPC and transaction hash
+            if(proposalExists)
+                await fetchIPFSData(ipfsHash).then((data) => {
+                    ipfsData = data;
+                }) 
+            else
+                ipfsData = null;
+            // Check if the proposal hash matches the snapshots (ipfsData)
+            console.log("proposalInformation", proposalInformation.transactionHash)
+            console.log("IPFS hash", ipfsData.hash);
+            proposalHashMatchesSnapshots = (ipfsData != null && ipfsData.hash.toLowerCase() === proposalInformation.transactionHash.toLowerCase());
+            let realityEthVote = await checkRealityETHVote(rpc, proposalInformation.questionId); // boolean, true if the vote is yes, false if the vote is no or nobody has voted. 
+            
+
+            document.getElementById("snapshotExists").innerHTML = proposalExists;
+            ipfsData === null ? document.getElementById("proposalHashMatches").innerHTML = "N/A" : document.getElementById("proposalHashMatches").innerHTML = proposalHashMatchesSnapshots;
+            document.getElementById("realityEthVote").innerHTML = realityEthVote ? "yes" : "no" + " (if the vote is no it's possible nobody has voted)";
+
+        }
+    </script>
+</body>
+</html>
