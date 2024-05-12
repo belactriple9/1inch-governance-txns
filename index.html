@@ -97,7 +97,16 @@
             let proposalHashMatchesSnapshots;
             let ipfsHash;
             let ipfsData; 
-            let proposalInformation = await fetchLogs(rpc, txHash);
+            let proposalInformation;
+            try {
+                proposalInformation = await fetchLogs(rpc, txHash);
+            } catch (error) {
+                // transaction doesn't exist or is not a proposal
+                document.getElementById("snapshotExists").innerHTML = "N/A";
+                document.getElementById("proposalHashMatches").innerHTML = "N/A";
+                document.getElementById("realityEthVote").innerHTML = "N/A";
+                return;
+            }
             let proposalID = proposalInformation.proposalID;
             await fetchIPFSHash(proposalID).then((ipfsData) => {
                 proposalExists = ipfsData ? true : false;
