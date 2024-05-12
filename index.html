@@ -102,16 +102,22 @@
                 proposalInformation = await fetchLogs(rpc, txHash);
             } catch (error) {
                 // transaction doesn't exist or is not a proposal
-                document.getElementById("snapshotExists").innerHTML = "N/A";
+                document.getElementById("snapshotExists").innerHTML = "Transaction doesn't exist or is not a proposal!";
                 document.getElementById("proposalHashMatches").innerHTML = "N/A";
                 document.getElementById("realityEthVote").innerHTML = "N/A";
                 return;
             }
             let proposalID = proposalInformation.proposalID;
             await fetchIPFSHash(proposalID).then((ipfsData) => {
-                proposalExists = ipfsData ? true : false;
+                proposalExists = ipfsData.proposal !== null ? true : false;
                 ipfsHash = ipfsData;
             });
+            if(ipfsData.proposal === null) {
+                document.getElementById("snapshotExists").innerHTML = "snapshot API returned null, this may be malicious, please manually check.";
+                document.getElementById("proposalHashMatches").innerHTML = "N/A";
+                document.getElementById("realityEthVote").innerHTML = "N/A";
+                return;
+            }
             // Perform actions with the RPC and transaction hash
             if(proposalExists)
                 await fetchIPFSData(ipfsHash).then((data) => {
