@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1inch Governance Command Center</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header id="app-header">
+    <div class="header-left">
+      <h1>🏛️ 1inch Governance Command Center</h1>
+      <span class="subtitle">Reality.eth Monitor &amp; Management Dashboard</span>
+    </div>
+    <div class="header-right">
+      <span id="network-badge" class="badge badge-neutral" title="Network status">⏳ No RPC</span>
+      <span id="sync-badge" class="badge badge-neutral" title="Sync status">— synced</span>
+      <button id="btn-wallet" class="btn btn-primary">Connect Wallet</button>
+      <button id="btn-settings" class="btn btn-secondary">⚙ Settings</button>
+    </div>
+  </header>
+
+  <main id="app-main">
+    <!-- ==================== SETTINGS PANEL ==================== -->
+    <section id="settings-panel" class="panel hidden">
+      <h2>Settings</h2>
+      <div class="form-group">
+        <label for="input-rpc">RPC URL (primary)</label>
+        <input id="input-rpc" type="text" placeholder="https://ethereum-rpc.publicnode.com" />
+      </div>
+      <div class="form-group">
+        <label for="input-rpc-fallback">RPC URL (fallback, optional)</label>
+        <input id="input-rpc-fallback" type="text" placeholder="https://rpc.ankr.com/eth" />
+      </div>
+      <div class="form-group">
+        <label for="input-backfill">Backfill window (days)</label>
+        <input id="input-backfill" type="number" value="7" min="1" max="90" />
+      </div>
+      <div class="form-group">
+        <label for="input-poll-interval">Poll interval (seconds)</label>
+        <input id="input-poll-interval" type="number" value="30" min="5" max="300" />
+      </div>
+      <div class="settings-actions">
+        <button id="btn-save-settings" class="btn btn-primary">Save &amp; Connect</button>
+        <button id="btn-reindex" class="btn btn-warning">Clear Cache &amp; Re-index</button>
+        <button id="btn-export-db" class="btn btn-secondary">Export DB</button>
+        <button id="btn-import-db" class="btn btn-secondary">Import DB</button>
+        <input id="file-import-db" type="file" accept=".json" class="hidden" />
+      </div>
+      <div id="settings-status" class="status-box"></div>
+      <div id="module-config" class="config-display hidden">
+        <h3>Module Configuration (on-chain)</h3>
+        <table class="config-table">
+          <tr><td>Avatar (Safe)</td><td id="cfg-avatar">—</td></tr>
+          <tr><td>Target</td><td id="cfg-target">—</td></tr>
+          <tr><td>Oracle</td><td id="cfg-oracle">—</td></tr>
+          <tr><td>Question Cooldown</td><td id="cfg-cooldown">—</td></tr>
+          <tr><td>Answer Expiration</td><td id="cfg-expiration">—</td></tr>
+          <tr><td>Minimum Bond</td><td id="cfg-minbond">—</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== PROPOSALS LIST ==================== -->
+    <section id="proposals-panel" class="panel">
+      <div class="panel-header">
+        <h2>Proposals</h2>
+        <div class="panel-actions">
+          <input id="search-proposals" type="text" placeholder="Search by proposalId or questionId..." />
+          <select id="filter-status">
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="answered">Answered</option>
+            <option value="finalized">Finalized</option>
+            <option value="executable">Executable</option>
+          </select>
+          <button id="btn-refresh" class="btn btn-secondary" title="Refresh all">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="proposals-loading" class="loading-indicator hidden">
+        <div class="spinner"></div>
+        <span>Indexing proposals...</span>
+        <span id="indexing-progress"></span>
+      </div>
+      <table id="proposals-table" class="data-table">
+        <thead>
+          <tr>
+            <th>Proposal ID</th>
+            <th>Question ID</th>
+            <th>Status</th>
+            <th>Best Answer</th>
+            <th>Bond (ETH)</th>
+            <th>Finalize ETA</th>
+            <th>Executable?</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="proposals-tbody">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+      <div id="no-proposals" class="empty-state hidden">
+        <p>No proposals found. Configure your RPC in Settings and run a backfill.</p>
+      </div>
+    </section>
+
+    <!-- ==================== PROPOSAL DETAIL ==================== -->
+    <section id="detail-panel" class="panel hidden">
+      <button id="btn-back" class="btn btn-secondary">← Back to Proposals</button>
+      <h2 id="detail-title">Proposal Detail</h2>
+
+      <div class="detail-grid">
+        <!-- Identifiers -->
+        <div class="detail-card">
+          <h3>Identifiers</h3>
+          <table class="detail-table">
+            <tr><td>Proposal ID</td><td id="det-proposalId" class="mono">—</td></tr>
+            <tr><td>Question ID</td><td id="det-questionId" class="mono">—</td></tr>
+            <tr><td>Created Tx</td><td id="det-createdTx" class="mono">—</td></tr>
+            <tr><td>Created Block</td><td id="det-createdBlock">—</td></tr>
+            <tr><td>Created Time</td><td id="det-createdTime">—</td></tr>
+          </table>
+        </div>
+
+        <!-- Question Text -->
+        <div class="detail-card">
+          <h3>Question Text</h3>
+          <pre id="det-questionText" class="question-text">—</pre>
+        </div>
+
+        <!-- Reality Status -->
+        <div class="detail-card">
+          <h3>Reality.eth Status</h3>
+          <table class="detail-table">
+            <tr><td>Status</td><td id="det-status">—</td></tr>
+            <tr><td>Best Answer</td><td id="det-bestAnswer">—</td></tr>
+            <tr><td>Current Bond</td><td id="det-bond">—</td></tr>
+            <tr><td>Finalize Time</td><td id="det-finalizeTs">—</td></tr>
+            <tr><td>Time Remaining</td><td id="det-timeRemaining">—</td></tr>
+            <tr><td>Pending Arbitration</td><td id="det-arbitration">—</td></tr>
+          </table>
+        </div>
+
+        <!-- Module Thresholds -->
+        <div class="detail-card">
+          <h3>Module Thresholds</h3>
+          <table class="detail-table">
+            <tr><td>Minimum Bond</td><td id="det-minBond">—</td></tr>
+            <tr><td>Cooldown</td><td id="det-cooldown">—</td></tr>
+            <tr><td>Answer Expiration</td><td id="det-expiration">—</td></tr>
+            <tr><td>Executable?</td><td id="det-executable">—</td></tr>
+          </table>
+        </div>
+
+        <!-- Tx Hashes -->
+        <div class="detail-card full-width">
+          <h3>Transaction Hashes</h3>
+          <ol id="det-txHashes" class="mono tx-hash-list">
+            <!-- populated by JS -->
+          </ol>
+        </div>
+
+        <!-- Answer History -->
+        <div class="detail-card full-width">
+          <h3>Answer History</h3>
+          <table class="data-table" id="answer-history-table">
+            <thead>
+              <tr>
+                <th>Answer</th>
+                <th>User</th>
+                <th>Bond (ETH)</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="answer-history-tbody">
+              <!-- populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Vote Section -->
+      <div class="action-section" id="vote-section">
+        <h3>Submit Answer (Vote)</h3>
+        <div id="vote-wallet-warning" class="warning-box hidden">Connect your wallet to vote.</div>
+        <div id="vote-form" class="vote-form">
+          <div class="vote-buttons">
+            <button id="btn-vote-yes" class="btn btn-success btn-large">✓ YES</button>
+            <button id="btn-vote-no" class="btn btn-danger btn-large">✗ NO</button>
+          </div>
+          <div class="form-group">
+            <label for="input-bond">Bond (ETH)</label>
+            <input id="input-bond" type="text" placeholder="0.0" />
+            <small id="bond-suggestion">Suggested: —</small>
+          </div>
+          <div class="form-group">
+            <label for="input-max-previous">Max Previous Bond (ETH)</label>
+            <input id="input-max-previous" type="text" placeholder="0.0" />
+            <small>Safety parameter: reverts if someone posted a higher bond after you signed.</small>
+          </div>
+          <div id="vote-preview" class="calldata-preview hidden">
+            <h4>Transaction Preview</h4>
+            <pre id="vote-calldata"></pre>
+          </div>
+          <button id="btn-submit-vote" class="btn btn-primary" disabled>Submit Answer</button>
+          <div id="vote-status" class="status-box"></div>
+        </div>
+      </div>
+
+      <!-- Execute Section -->
+      <div class="action-section" id="execute-section">
+        <h3>Execute Proposal Transactions</h3>
+        <div id="exec-wallet-warning" class="warning-box hidden">Connect your wallet to execute.</div>
+        <div id="exec-not-executable" class="warning-box hidden">This proposal is not yet executable.</div>
+        <div class="form-group">
+          <label>Import Transaction Bundle (JSON)</label>
+          <textarea id="input-tx-bundle" rows="6" placeholder='[{"to":"0x...","value":"0","data":"0x...","operation":0}]'></textarea>
+          <button id="btn-import-bundle" class="btn btn-secondary">Import Bundle</button>
+        </div>
+        <div id="tx-bundle-preview" class="hidden">
+          <h4>Transaction Bundle</h4>
+          <table class="data-table">
+            <thead>
+              <tr><th>#</th><th>To</th><th>Value</th><th>Data</th><th>Op</th><th>Action</th></tr>
+            </thead>
+            <tbody id="tx-bundle-tbody"></tbody>
+          </table>
+        </div>
+        <div id="exec-status" class="status-box"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>1inch Governance Command Center — Self-hosted Reality.eth Dashboard — No external dependencies required</p>
+  </footer>
+
+  <!-- Toast notification container -->
+  <div id="toast-container"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
