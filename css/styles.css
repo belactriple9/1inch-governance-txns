@@ -478,6 +478,7 @@ footer {
 
 .status-pending    { background: rgba(139, 148, 158, 0.15); color: var(--text-secondary); }
 .status-answered   { background: rgba(88, 166, 255, 0.15);  color: var(--accent-blue); }
+.status-arbitration { background: rgba(210, 153, 34, 0.2); color: var(--accent-yellow); }
 .status-finalized  { background: rgba(63, 185, 80, 0.15);   color: var(--accent-green); }
 .status-executable { background: rgba(188, 140, 255, 0.15); color: var(--accent-purple); }
 

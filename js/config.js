@@ -12,8 +12,9 @@ export const DEFAULT_BACKFILL_DAYS = 7;
 export const DEFAULT_POLL_INTERVAL_SEC = 30;
 export const SECONDS_PER_DAY = 86400;
 export const LOG_CHUNK_SIZE = 5000; // blocks per getLogs request
-export const MAX_RETRIES = 3;
+export const MAX_RETRIES = 7;
 export const RETRY_DELAY_MS = 2000;
+export const MAX_BACKOFF_DELAY_MS = 32000;
 
 // ---- Boolean answer encoding ----
 export const ANSWER_YES = "0x0000000000000000000000000000000000000000000000000000000000000001";

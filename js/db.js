@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = "GovernanceCommandCenter";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let _db = null;
 
@@ -25,18 +25,34 @@ export function openDB() {
         db.createObjectStore("settings", { keyPath: "key" });
       }
 
+      let proposalsStore;
       if (!db.objectStoreNames.contains("proposals")) {
-        const store = db.createObjectStore("proposals", { keyPath: "questionId" });
-        store.createIndex("proposalId", "proposalId", { unique: false });
-        store.createIndex("createdBlock", "createdBlock", { unique: false });
+        proposalsStore = db.createObjectStore("proposals", { keyPath: "questionId" });
+      } else {
+        proposalsStore = e.target.transaction.objectStore("proposals");
+      }
+      if (!proposalsStore.indexNames.contains("proposalId")) {
+        proposalsStore.createIndex("proposalId", "proposalId", { unique: false });
+      }
+      if (!proposalsStore.indexNames.contains("createdBlock")) {
+        proposalsStore.createIndex("createdBlock", "createdBlock", { unique: false });
       }
 
       if (!db.objectStoreNames.contains("questions_state")) {
         db.createObjectStore("questions_state", { keyPath: "questionId" });
       }
 
+      let answersStore;
       if (!db.objectStoreNames.contains("answers")) {
-        db.createObjectStore("answers", { keyPath: "id" }); // id = `${questionId}:${logIndex}`
+        answersStore = db.createObjectStore("answers", { keyPath: "id" }); // id = `${questionId}:${block}:${txIndex}:${logIndex}`
+      } else {
+        answersStore = e.target.transaction.objectStore("answers");
+      }
+      if (!answersStore.indexNames.contains("questionId")) {
+        answersStore.createIndex("questionId", "questionId", { unique: false });
+      }
+      if (!answersStore.indexNames.contains("blockNumber")) {
+        answersStore.createIndex("blockNumber", "blockNumber", { unique: false });
       }
 
       if (!db.objectStoreNames.contains("txBundles")) {
@@ -91,6 +107,36 @@ export async function dbGetAll(storeName) {
     const store = tx.objectStore(storeName);
     const req = store.getAll();
     req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/**
+ * Get the first record by an index key from a store.
+ */
+export async function dbGetByIndex(storeName, indexName, key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readonly");
+    const store = tx.objectStore(storeName);
+    const index = store.index(indexName);
+    const req = index.get(key);
+    req.onsuccess = () => resolve(req.result ?? null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/**
+ * Get all records by an index key from a store.
+ */
+export async function dbGetAllByIndex(storeName, indexName, key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, "readonly");
+    const store = tx.objectStore(storeName);
+    const index = store.index(indexName);
+    const req = index.getAll(IDBKeyRange.only(key));
+    req.onsuccess = () => resolve(req.result ?? []);
     req.onerror = () => reject(req.error);
   });
 }

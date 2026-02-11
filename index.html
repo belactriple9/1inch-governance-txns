@@ -4,6 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>1inch Governance Command Center</title>
+  <script>
+    (function configureBaseHref() {
+      const marker = "/governance-tx/";
+      const path = window.location.pathname || "/";
+      const markerIndex = path.toLowerCase().indexOf(marker);
+      let basePath = "/";
+
+      if (markerIndex >= 0) {
+        basePath = path.slice(0, markerIndex + 1);
+      } else if (path.endsWith(".html")) {
+        const slashIdx = path.lastIndexOf("/");
+        basePath = slashIdx >= 0 ? path.slice(0, slashIdx + 1) : "/";
+      } else {
+        basePath = path.endsWith("/") ? path : `${path}/`;
+      }
+
+      const base = document.createElement("base");
+      base.href = basePath || "/";
+      document.head.appendChild(base);
+    })();
+  </script>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -70,7 +91,7 @@
           <select id="filter-status">
             <option value="all">All Statuses</option>
             <option value="pending">Pending</option>
-            <option value="answered">Answered</option>
+            <option value="arbitration">Arbitration</option>
             <option value="finalized">Finalized</option>
             <option value="executable">Executable</option>
           </select>
@@ -205,6 +226,28 @@
           <button id="btn-submit-vote" class="btn btn-primary" disabled>Submit Answer</button>
           <div id="vote-status" class="status-box"></div>
         </div>
+      </div>
+
+      <!-- Arbitration Section -->
+      <div class="action-section" id="arbitration-section">
+        <h3>Initialize Arbitration</h3>
+        <div id="arb-wallet-warning" class="warning-box hidden">Connect your wallet to initiate arbitration.</div>
+        <div class="form-group">
+          <label for="input-arb-max-previous">Max Previous Bond (ETH)</label>
+          <input id="input-arb-max-previous" type="text" placeholder="0.0" />
+          <small>Safety parameter: prevents requesting arbitration if bond has changed.</small>
+        </div>
+        <div class="form-group">
+          <label for="input-arb-fee">Arbitration Fee (ETH)</label>
+          <input id="input-arb-fee" type="text" placeholder="0.0" value="0" />
+          <small>Set this to the required arbitration fee for the configured arbitrator.</small>
+        </div>
+        <div id="arb-preview" class="calldata-preview hidden">
+          <h4>Transaction Preview</h4>
+          <pre id="arb-calldata"></pre>
+        </div>
+        <button id="btn-init-arbitration" class="btn btn-warning">Initiate Arbitration</button>
+        <div id="arb-status" class="status-box"></div>
       </div>
 
       <!-- Execute Section -->

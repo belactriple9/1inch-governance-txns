@@ -104,23 +104,23 @@ export function computeProposalStatus(questionState, moduleConfig) {
     return { label: "arbitration", executable: false, reason: "Pending arbitration" };
   }
 
-  // Not finalized yet
+  // Not finalized yet: always keep status pending, even if there is a best answer.
   if (!isFinalized) {
     if (!hasAnswer) {
       return { label: "pending", executable: false, reason: "No answers yet" };
     }
     if (finalizeTs > 0 && now < finalizeTs) {
       return {
-        label: "answered",
+        label: "pending",
         executable: false,
-        reason: `Finalizes in ${formatDuration(finalizeTs - now)}`,
+        reason: `Best answer set, finalizes in ${formatDuration(finalizeTs - now)}`,
       };
     }
-    // finalize_ts passed but isFinalized returned false — it's finalizeable but not yet called
+    // finalize_ts passed but isFinalized returned false — it's finalizable but not finalized yet
     return {
-      label: "answered",
+      label: "pending",
       executable: false,
-      reason: "Awaiting finalization call",
+      reason: "Best answer set, awaiting finalization call",
     };
   }
 

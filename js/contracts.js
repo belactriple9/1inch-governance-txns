@@ -44,6 +44,7 @@ export const REALITIO_ABI = [
 
   // Write functions
   "function submitAnswer(bytes32 question_id, bytes32 answer, uint256 max_previous) payable",
+  "function notifyOfArbitrationRequest(bytes32 question_id, uint256 max_previous) payable",
   "function claimWinnings(bytes32 question_id, bytes32[] history_hashes, address[] addrs, uint256[] bonds, bytes32[] answers)",
   "function claimMultipleAndWithdrawBalance(bytes32[] question_ids, uint256[] lengths, bytes32[] history_hashes, address[] addrs, uint256[] bonds, bytes32[] answers)",
   "function withdraw() external",

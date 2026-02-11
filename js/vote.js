@@ -33,6 +33,28 @@ export async function submitAnswer(signer, questionId, answerYes, bondWei, maxPr
 }
 
 /**
+ * Request arbitration for a question on Reality.eth.
+ *
+ * @param {ethers.Signer} signer
+ * @param {string} questionId
+ * @param {string} maxPreviousWei
+ * @param {string} arbitrationFeeWei
+ * @returns {ethers.TransactionResponse}
+ */
+export async function notifyArbitrationRequest(
+  signer,
+  questionId,
+  maxPreviousWei,
+  arbitrationFeeWei = "0"
+) {
+  const realitio = getRealitioContract(signer);
+  const maxPrev = BigInt(maxPreviousWei || "0");
+  const fee = BigInt(arbitrationFeeWei || "0");
+
+  return realitio.notifyOfArbitrationRequest(questionId, maxPrev, { value: fee });
+}
+
+/**
  * Build a preview of the submitAnswer transaction (for user review - NFR-4).
  */
 export function buildAnswerPreview(questionId, answerYes, bondWei, maxPreviousWei) {
@@ -47,5 +69,21 @@ export function buildAnswerPreview(questionId, answerYes, bondWei, maxPreviousWe
     },
     value: `${ethers.formatEther(bondWei)} ETH`,
     valueWei: bondWei,
+  };
+}
+
+/**
+ * Build a preview for notifyOfArbitrationRequest.
+ */
+export function buildArbitrationPreview(questionId, maxPreviousWei, arbitrationFeeWei) {
+  return {
+    contract: "Reality.eth v3.0",
+    method: "notifyOfArbitrationRequest(bytes32,uint256)",
+    params: {
+      question_id: questionId,
+      max_previous: maxPreviousWei,
+    },
+    value: `${ethers.formatEther(arbitrationFeeWei)} ETH`,
+    valueWei: arbitrationFeeWei,
   };
 }
