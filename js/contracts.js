@@ -31,6 +31,7 @@ export const REALITIO_ABI = [
   "event LogNewQuestion(bytes32 indexed question_id, address indexed user, uint256 template_id, string question, bytes32 indexed content_hash, address arbitrator, uint32 timeout, uint32 opening_ts, uint256 nonce, uint256 created)",
   "event LogNewAnswer(bytes32 answer, bytes32 indexed question_id, bytes32 history_hash, address indexed user, uint256 bond, uint256 ts, bool is_commitment)",
   "event LogFinalize(bytes32 indexed question_id, bytes32 indexed answer)",
+  "event LogNotifyOfArbitrationRequest(bytes32 indexed question_id, address indexed user)",
 
   // Read functions
   "function questions(bytes32) view returns (bytes32 content_hash, address arbitrator, uint32 opening_ts, uint32 timeout, uint32 finalize_ts, bool is_pending_arbitration, uint256 bounty, bytes32 best_answer, bytes32 history_hash, uint256 bond, uint256 min_bond)",
@@ -39,9 +40,13 @@ export const REALITIO_ABI = [
   "function getBond(bytes32) view returns (uint256)",
   "function getTimeout(bytes32) view returns (uint32)",
   "function getBestAnswer(bytes32) view returns (bytes32)",
+  "function balanceOf(address) view returns (uint256)",
 
   // Write functions
   "function submitAnswer(bytes32 question_id, bytes32 answer, uint256 max_previous) payable",
+  "function claimWinnings(bytes32 question_id, bytes32[] history_hashes, address[] addrs, uint256[] bonds, bytes32[] answers)",
+  "function claimMultipleAndWithdrawBalance(bytes32[] question_ids, uint256[] lengths, bytes32[] history_hashes, address[] addrs, uint256[] bonds, bytes32[] answers)",
+  "function withdraw() external",
 ];
 
 // ---- Module Interface (for parsing) ----

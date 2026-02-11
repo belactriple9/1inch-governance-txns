@@ -362,6 +362,16 @@ textarea {
   margin-bottom: 12px;
 }
 
+/* ---- Claim Section ---- */
+#claim-section .btn-success,
+#claims-overview-panel .btn-success {
+  min-width: 120px;
+}
+
+#claims-overview-panel {
+  border-left: 3px solid var(--accent-green);
+}
+
 /* ---- Status / Warning boxes ---- */
 .status-box {
   margin-top: 10px;

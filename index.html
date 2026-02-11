@@ -228,6 +228,63 @@
         </div>
         <div id="exec-status" class="status-box"></div>
       </div>
+
+      <!-- Claim Section -->
+      <div class="action-section hidden" id="claim-section">
+        <h3>💰 Claim Bonds</h3>
+        <div id="claim-wallet-warning" class="warning-box hidden">Connect your wallet to view and claim bonds.</div>
+        <p id="claim-balance" class="hidden" style="margin-bottom:8px; color:var(--accent-green); font-weight:500;"></p>
+        <div id="claim-none" class="empty-state hidden">
+          <p>No claimable bonds found for your address on this question.</p>
+        </div>
+        <table id="claim-table" class="data-table hidden">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Answer</th>
+              <th>Bond</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="claim-tbody"></tbody>
+        </table>
+        <p id="claim-total" style="margin-top:10px; font-weight:600;"></p>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button id="btn-claim-winnings" class="btn btn-success" disabled>Claim Winnings</button>
+          <button id="btn-withdraw-balance" class="btn btn-secondary hidden">Withdraw Balance</button>
+        </div>
+        <div id="claim-status" class="status-box"></div>
+      </div>
+    </section>
+
+    <!-- ==================== CLAIMS OVERVIEW ==================== -->
+    <section id="claims-overview-panel" class="panel hidden">
+      <div class="panel-header">
+        <h2>💰 Claimable Bonds Overview</h2>
+        <div class="panel-actions">
+          <button id="btn-scan-claims" class="btn btn-primary">🔍 Scan for Claimable Bonds</button>
+          <button id="btn-claim-all" class="btn btn-success" disabled>Claim All &amp; Withdraw</button>
+        </div>
+      </div>
+      <div id="claims-overview-none" class="empty-state hidden">
+        <p>No claimable bonds found. Click "Scan" to check.</p>
+      </div>
+      <table id="claims-overview-table" class="data-table hidden">
+        <thead>
+          <tr>
+            <th>Proposal ID</th>
+            <th>Question ID</th>
+            <th>Claimable Answers</th>
+            <th>Estimated Amount</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="claims-overview-tbody"></tbody>
+      </table>
+      <p id="claims-overview-total" style="margin-top:10px; font-weight:600;"></p>
+      <div id="claims-overview-status" class="status-box"></div>
     </section>
   </main>
 

@@ -305,10 +305,13 @@ export async function fetchAnswerHistory(provider, questionId) {
         id: `${questionId}:${log.blockNumber}:${log.transactionIndex}:${log.index}`,
         questionId: questionId,
         answer: parsed.args.answer || parsed.args[0],
+        historyHash: parsed.args.history_hash || parsed.args[2],
         user: parsed.args.user || parsed.args[3],
         bond: parsed.args.bond?.toString() || parsed.args[4]?.toString() || "0",
         ts: Number(parsed.args.ts || parsed.args[5] || 0),
         isCommitment: parsed.args.is_commitment || parsed.args[6] || false,
+        blockNumber: log.blockNumber,
+        logIndex: log.index,
       };
 
       await dbPut("answers", answer);

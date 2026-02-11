@@ -301,6 +301,106 @@ function renderAnswerHistory(answers) {
   }
 }
 
+// ---- Bond Claims ----
+
+export function renderClaimSection(claimableAnswers, questionId, totalClaimable, unclaimedBalance) {
+  const section = document.getElementById("claim-section");
+  const tbody = document.getElementById("claim-tbody");
+  const totalEl = document.getElementById("claim-total");
+  const balanceEl = document.getElementById("claim-balance");
+  const noClaims = document.getElementById("claim-none");
+  const claimTable = document.getElementById("claim-table");
+
+  if (section) section.classList.remove("hidden");
+  if (tbody) tbody.innerHTML = "";
+
+  if (unclaimedBalance !== null && unclaimedBalance !== undefined) {
+    balanceEl.textContent = `Reality.eth balance: ${ethers.formatEther(unclaimedBalance)} ETH`;
+    balanceEl.classList.remove("hidden");
+    document.getElementById("btn-withdraw-balance").classList.toggle("hidden", unclaimedBalance === 0n);
+  } else {
+    balanceEl.classList.add("hidden");
+  }
+
+  if (!claimableAnswers || claimableAnswers.length === 0) {
+    noClaims.classList.remove("hidden");
+    claimTable.classList.add("hidden");
+    totalEl.textContent = "";
+    return;
+  }
+
+  noClaims.classList.add("hidden");
+  claimTable.classList.remove("hidden");
+
+  for (const entry of claimableAnswers) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${entry.index}</td>
+      <td>${formatAnswer(entry.answer)}</td>
+      <td>${ethers.formatEther(entry.bond)} ETH</td>
+      <td>${entry.ts ? new Date(entry.ts * 1000).toLocaleString() : "—"}</td>
+      <td><span class="badge ${entry.claimable ? "badge-success" : "badge-neutral"}">${entry.claimable ? "Claimable" : "Locked"}</span></td>
+      <td>${escapeHtml(entry.reason)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  const hasClaimable = claimableAnswers.some((a) => a.claimable);
+  totalEl.textContent = hasClaimable
+    ? `Estimated claimable: ${ethers.formatEther(totalClaimable)} ETH (your bonds)`
+    : "No bonds currently claimable";
+
+  document.getElementById("btn-claim-winnings").disabled = !hasClaimable;
+}
+
+export function renderClaimsOverview(allClaims, onClaim, onClaimAll) {
+  const panel = document.getElementById("claims-overview-panel");
+  const tbody = document.getElementById("claims-overview-tbody");
+  const noClaims = document.getElementById("claims-overview-none");
+  const table = document.getElementById("claims-overview-table");
+  const totalEl = document.getElementById("claims-overview-total");
+
+  panel.classList.remove("hidden");
+  tbody.innerHTML = "";
+
+  if (!allClaims || allClaims.length === 0) {
+    noClaims.classList.remove("hidden");
+    table.classList.add("hidden");
+    totalEl.textContent = "";
+    document.getElementById("btn-claim-all").disabled = true;
+    return;
+  }
+
+  noClaims.classList.add("hidden");
+  table.classList.remove("hidden");
+
+  let grandTotal = 0n;
+
+  for (const claim of allClaims) {
+    grandTotal += claim.totalClaimable;
+    const pidDisplay = claim.proposalId
+      ? (claim.proposalId.length > 20 ? claim.proposalId.slice(0, 20) + "…" : claim.proposalId)
+      : "—";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="mono" title="${escapeHtml(claim.proposalId || "")}">${escapeHtml(pidDisplay)}</td>
+      <td class="mono">${claim.questionId.slice(0, 10)}…${claim.questionId.slice(-6)}</td>
+      <td>${claim.claimableAnswers.length}</td>
+      <td>${ethers.formatEther(claim.totalClaimable)} ETH</td>
+      <td><button class="btn btn-primary btn-claim-single" data-qid="${claim.questionId}">Claim</button></td>
+    `;
+
+    const claimBtn = tr.querySelector(".btn-claim-single");
+    claimBtn.addEventListener("click", () => onClaim(claim));
+    tbody.appendChild(tr);
+  }
+
+  totalEl.textContent = `Total claimable: ${ethers.formatEther(grandTotal)} ETH`;
+  document.getElementById("btn-claim-all").disabled = allClaims.length === 0;
+  document.getElementById("btn-claim-all").onclick = () => onClaimAll(allClaims);
+}
+
 // ---- Filter / Search ----
 
 export function getSearchFilter() {

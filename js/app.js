@@ -43,6 +43,17 @@ import {
   buildExecutePreview,
 } from "./execute.js";
 import {
+  getFullAnswerHistory,
+  computeClaimableAnswers,
+  estimateClaimableAmount,
+  claimWinnings,
+  claimMultipleAndWithdraw,
+  withdrawBalance,
+  getUnclaimedBalance,
+  scanClaimableBonds,
+  buildClaimPreview,
+} from "./claim.js";
+import {
   showToast,
   setStatus,
   updateNetworkBadge,
@@ -61,6 +72,8 @@ import {
   filterProposals,
   getSearchFilter,
   getStatusFilter,
+  renderClaimSection,
+  renderClaimsOverview,
 } from "./ui.js";
 
 // ---- App State ----
@@ -271,6 +284,9 @@ async function openProposalDetail(proposal) {
 
   // Update execute section
   updateExecuteSection(proposal, qs);
+
+  // Update claim section
+  await updateClaimSection(proposal, qs);
 }
 
 function updateVoteSection(questionState) {
@@ -317,6 +333,159 @@ async function updateExecuteSection(proposal, questionState) {
     if (bundle) {
       renderTxBundle(bundle, proposal);
     }
+  }
+}
+
+// ---- Bond Claiming ----
+
+async function updateClaimSection(proposal, questionState) {
+  if (!proposal) return;
+
+  if (!isConnected() || !provider) {
+    renderClaimSection([], proposal.questionId, 0n, null);
+    document.getElementById("claim-wallet-warning").classList.remove("hidden");
+    return;
+  }
+  document.getElementById("claim-wallet-warning").classList.add("hidden");
+
+  try {
+    const userAddr = getAddress();
+    const history = await getFullAnswerHistory(provider, proposal.questionId, proposal.createdBlock || 0);
+    const claimable = computeClaimableAnswers(history, questionState, userAddr);
+    const totalClaimable = estimateClaimableAmount(claimable);
+
+    let unclaimedBalance = 0n;
+    try {
+      unclaimedBalance = await getUnclaimedBalance(provider, userAddr);
+    } catch { /* skip */ }
+
+    renderClaimSection(claimable, proposal.questionId, totalClaimable, unclaimedBalance);
+  } catch (err) {
+    console.warn("Error loading claim data:", err.message);
+    renderClaimSection([], proposal.questionId, 0n, null);
+  }
+}
+
+async function doClaimWinnings() {
+  if (!currentProposal || !isConnected() || !provider) return;
+
+  try {
+    setStatus("claim-status", "Fetching answer history...", "info");
+
+    const history = await getFullAnswerHistory(
+      provider,
+      currentProposal.questionId,
+      currentProposal.createdBlock || 0
+    );
+
+    if (history.length === 0) {
+      setStatus("claim-status", "No answer history found", "error");
+      return;
+    }
+
+    buildClaimPreview(currentProposal.questionId, history);
+
+    const signer = getSigner();
+    const tx = await claimWinnings(signer, currentProposal.questionId, history);
+
+    setStatus("claim-status", `Transaction sent: ${tx.hash}`, "info");
+    showToast("Claim transaction submitted!", "info");
+
+    const receipt = await tx.wait();
+    setStatus("claim-status", `Claimed in block ${receipt.blockNumber} ✓`, "success");
+    showToast("Bond claimed successfully!", "success");
+
+    const qs = questionStates.get(currentProposal.questionId);
+    await updateClaimSection(currentProposal, qs);
+  } catch (err) {
+    console.error("Claim error:", err);
+    setStatus("claim-status", `Error: ${err.reason || err.message}`, "error");
+    showToast(`Claim failed: ${err.reason || err.message}`, "error");
+  }
+}
+
+async function doWithdrawBalance() {
+  if (!isConnected()) return;
+
+  try {
+    setStatus("claim-status", "Withdrawing balance...", "info");
+    const signer = getSigner();
+    const tx = await withdrawBalance(signer);
+
+    setStatus("claim-status", `Transaction sent: ${tx.hash}`, "info");
+    showToast("Withdraw transaction submitted!", "info");
+
+    const receipt = await tx.wait();
+    setStatus("claim-status", `Withdrawn in block ${receipt.blockNumber} ✓`, "success");
+    showToast("Balance withdrawn successfully!", "success");
+
+    if (currentProposal) {
+      const qs = questionStates.get(currentProposal.questionId);
+      await updateClaimSection(currentProposal, qs);
+    }
+  } catch (err) {
+    console.error("Withdraw error:", err);
+    setStatus("claim-status", `Error: ${err.reason || err.message}`, "error");
+    showToast(`Withdraw failed: ${err.reason || err.message}`, "error");
+  }
+}
+
+async function doScanAllClaims() {
+  if (!isConnected() || !provider) {
+    showToast("Connect wallet and RPC first", "warning");
+    return;
+  }
+
+  try {
+    showToast("Scanning for claimable bonds...", "info");
+    const userAddr = getAddress();
+    const claims = await scanClaimableBonds(provider, userAddr, questionStates);
+
+    renderClaimsOverview(
+      claims,
+      async (claim) => {
+        try {
+          setStatus("claims-overview-status", `Claiming for ${claim.questionId.slice(0, 10)}...`, "info");
+          const signer = getSigner();
+          const tx = await claimWinnings(signer, claim.questionId, claim.answerHistory);
+          setStatus("claims-overview-status", `Tx sent: ${tx.hash}`, "info");
+          const receipt = await tx.wait();
+          setStatus("claims-overview-status", `Claimed in block ${receipt.blockNumber} ✓`, "success");
+          showToast("Bond claimed!", "success");
+          await doScanAllClaims();
+        } catch (err) {
+          setStatus("claims-overview-status", `Error: ${err.reason || err.message}`, "error");
+          showToast(`Claim failed: ${err.reason || err.message}`, "error");
+        }
+      },
+      async (allClaims) => {
+        try {
+          setStatus("claims-overview-status", `Claiming ${allClaims.length} questions...`, "info");
+          const signer = getSigner();
+          const tx = await claimMultipleAndWithdraw(
+            signer,
+            allClaims.map((c) => ({ questionId: c.questionId, answerHistory: c.answerHistory }))
+          );
+          setStatus("claims-overview-status", `Tx sent: ${tx.hash}`, "info");
+          const receipt = await tx.wait();
+          setStatus("claims-overview-status", `All claimed in block ${receipt.blockNumber} ✓`, "success");
+          showToast("All bonds claimed and withdrawn!", "success");
+          await doScanAllClaims();
+        } catch (err) {
+          setStatus("claims-overview-status", `Error: ${err.reason || err.message}`, "error");
+          showToast(`Batch claim failed: ${err.reason || err.message}`, "error");
+        }
+      }
+    );
+
+    if (claims.length === 0) {
+      showToast("No claimable bonds found", "info");
+    } else {
+      showToast(`Found ${claims.length} questions with claimable bonds`, "success");
+    }
+  } catch (err) {
+    console.error("Scan claims error:", err);
+    showToast(`Scan failed: ${err.message}`, "error");
   }
 }
 
@@ -636,6 +805,11 @@ function bindEvents() {
 
   // Execute
   document.getElementById("btn-import-bundle").addEventListener("click", doImportBundle);
+
+  // Claims
+  document.getElementById("btn-claim-winnings").addEventListener("click", doClaimWinnings);
+  document.getElementById("btn-withdraw-balance").addEventListener("click", doWithdrawBalance);
+  document.getElementById("btn-scan-claims").addEventListener("click", doScanAllClaims);
 
   // Wallet events
   onAccountsChanged(async (accounts) => {
